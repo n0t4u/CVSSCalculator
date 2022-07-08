@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #Author: n0t4u
-#Version: 0.1.1
+#Version: 0.1.2
 
 #Imports
 import argparse
@@ -40,6 +40,7 @@ scores={
 	"A:L":0.22,
 	"A:H":0.56
 }
+counter=1
 
 #Definitions
 def getCVSS(vector):
@@ -70,9 +71,6 @@ def getCVSS(vector):
 	else:
 		return calculateValues(attackVector,attackComplexity,privilegedRequired,userInteraction,scores[s],confidentiality,integrity,availability)
 
-def getCVSSfromFile(filename):
-	return
-
 def calculateValues(av,ac,pr,ui,scope,confidentiality,integrity,availability):
 	iss= 1-((1-confidentiality)*(1-integrity)*(1-availability))
 	if iss == 0:
@@ -81,18 +79,36 @@ def calculateValues(av,ac,pr,ui,scope,confidentiality,integrity,availability):
 		exploitability=8.22*av*ac*pr*ui
 		if scope:
 			impact=7.52*(iss-0.029)-3.25*pow((iss-0.02),15)
-			baseScore = min(1.08*(impact+exploitability),10)
+			baseScore = roundup(min(1.08*(impact+exploitability),10))
+			if baseScore == 10:
+				exploitabilityAux = roundup((exploitability*10/(exploitability+impact)*10)/10)
+				impactAux = roundup((impact*10/(exploitability+impact)*10)/10)
+				logging.info("Impact: %f\t\tExploitability: %f" %(impact,exploitability))
+				logging.info("Impact (right): %f\tExploitability (right): %f" %(impactAux,exploitabilityAux))
+				#exploitability = exploitabilityAux
+				#impact =  impactAux
+			else:
+				logging.info("Impact: %f\tExploitability: %f" %(impact,exploitability))
 		else:
 			impact=6.42*iss
-			baseScore = min(impact+exploitability,10)
+			logging.info("Impact: %f\tExploitability: %f" %(impact,exploitability))
+			baseScore = roundup(min(impact+exploitability,10))
 		
-		logging.info("Impact: %f\tExploitability: %f" %(impact,exploitability))
+		
 		baseScore=math.ceil(baseScore*10)/10 #Original formula= math.floor(old_value * 10**ndecimals) / 10**ndecimals
 		logging.info("Base Score: %f" %baseScore)
 
 		return impact,exploitability,baseScore
 
-def createGraph(impact,exploitability,baseScore):
+def roundup(input):
+	integer = round(input*100000)
+	if (integer %10000) == 0:
+		return integer/100000.0
+	else:
+		return (math.floor(integer/10000)+1) /10.0
+
+def createGraph(impact,exploitability,baseScore,show):
+	global counter
 	labels = ['']
 	impact = [impact]
 	exploitability = [exploitability]
@@ -119,8 +135,10 @@ def createGraph(impact,exploitability,baseScore):
 	plt.xlim([0,10])
 	plt.xticks(range(11))
 	plt.ylabel("Puntuación total", rotation="horizontal", labelpad=40)
-	plt.savefig('cvss.png',transparent=True,bbox_inches='tight')
-	if args.show:
+	filename="cvss_%s.png" %int(counter)
+	counter += 1
+	plt.savefig(filename,transparent=True,bbox_inches='tight')
+	if show:
 		plt.show()
 
 #Argparse
@@ -139,9 +157,12 @@ if __name__ == '__main__':
 		logging.basicConfig(level=logging.INFO)
 	if args.vector:
 		impact, exploitability, baseScore =getCVSS(args.vector[0])
+		print(args.show)
+		createGraph(impact,exploitability, baseScore, show=args.show)
 	elif args.file:
-		getCVSSfromFile(args.file[0])
+		with open(args.file[0],"r",encoding="utf-8") as file:
+			for line in file:
+				impact, exploitability, baseScore =getCVSS(line.rstrip("\n"))
+				createGraph(impact,exploitability, baseScore, show=False)
 	else:
 		sys.exit(0)
-	
-	createGraph(impact,exploitability, baseScore)
