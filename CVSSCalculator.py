@@ -12,7 +12,6 @@ import math
 import matplotlib.pyplot as plt
 import re
 import sys
-#from threading import Lock
 
 
 # Classes
@@ -136,7 +135,7 @@ class CVSSVector:
     def getCVSS(self):
         print(self.vector)
         av, ac, pr, ui, s, c, i, a = self.vector.split('/')
-        print(av, ac, pr, ui, s, c, i, a, sep="   ")
+        logging.info("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s" %(av, ac, pr, ui, s, c, i, a))
         try:
             self.av = self.scores[av]
             self.ac = self.scores[ac]
@@ -248,7 +247,7 @@ class CVSSVector:
             self.baseScore = math.ceil(
                 self.baseScore * 10) / 10  # Original formula= math.floor(old_value * 10**ndecimals) / 10**ndecimals
             logging.info("Base Score: %f" % self.baseScore)
-            print(iss, self.impact, self.exploitability, self.baseScore)
+            logging.info("ISS:%f\tImpact:%f\tExploitability:%f\tBase Score:%f" %(iss, self.impact, self.exploitability, self.baseScore))
             return
 
     def calculateValuesExtended(self):
@@ -256,7 +255,7 @@ class CVSSVector:
                                     self.vector) else self.c  # Modified Confidentiality if MC and not MC:X value is found in vector
         iaux = self.mi if re.search("MI:[^X]", self.vector) else self.i
         aaux = self.ma if re.search("MA:[^X]", self.vector) else self.a
-        print(self.cr, self.ir, self.ar, "\t,", caux, iaux, aaux)
+        logging.info("%f %f %f \t %f %f %f" %(self.cr, self.ir, self.ar, caux, iaux, aaux))
         miss = min(1 - (1 - self.cr * caux) * (1 - self.ir * iaux) * (1 - self.ar * aaux), 0.915)
 
         if (re.search("MS:X", self.vector) and re.search("S:C", self.vector)) or re.search("MS:C", self.vector):
@@ -274,21 +273,18 @@ class CVSSVector:
             self.environmentalScore = self.roundup(min(1.08 * (self.impact + self.exploitability), 10))
         else:
             self.environmentalScore = self.roundup(min(self.impact + self.exploitability, 10))
-        print(miss, self.impact, self.exploitability, self.environmentalScore)
+        logging.info("MISS:%f\tModified Impact:%f\t Modified Exploitability:%f\tEnvironmental Score:%f" %(miss, self.impact, self.exploitability, self.environmentalScore))
         return
 
-		return impact,exploitability,baseScore
-
-def roundup(input):
-	integer = round(input*100000)
-	if (integer %10000) == 0:
-		return integer/100000.0
-	else:
-		return (math.floor(integer/10000)+1) /10.0
+    def roundup(self, input):
+        integer = round(input * 100000)
+        if (integer % 10000) == 0:
+            return integer / 100000.0
+        else:
+            return (math.floor(integer / 10000) + 1) / 10.0
 
     def createGraph(self, score, show):
         global counter
-        #global lock
         labels = ['']
         impact = [self.impact]
         exploitability = [self.exploitability]
@@ -315,19 +311,16 @@ def roundup(input):
         plt.xlim([0, 10])
         plt.xticks(range(11))
         plt.ylabel("Puntuación total", rotation="horizontal", labelpad=40)
-        #lock.acquire()
         filename = "cvss_%s.png" % str(counter)
         # plt.figure(num="Vector %s" %str(counter))
         counter += 1
         plt.savefig(filename, transparent=True, bbox_inches='tight')
-        #lock.release()
         if show:
             plt.show()
 
 
 # Variables
 counter = 1
-#lock = Lock()
 
 
 # Definitions
@@ -359,19 +352,8 @@ if __name__ == '__main__':
     if args.verbose:
         logging.basicConfig(level=logging.INFO)
     if args.vector:
-        # createCVSSVector(args.vector[0])
-        v = CVSSVector(args.vector[0])
-        createCVSSVector(v)
+        createCVSSVector(CVSSVector(args.vector[0]))
     elif args.file:
-        # with open(args.file[0], "r", encoding="utf-8") as file:
-        #     lines = file.readlines()
-        #     threads = 3#len(lines)
-        #     with multiprocessing.Pool(threads) as pool:
-        #         vectors = [(CVSSVector(line.rstrip("\n")),) for line in lines] #Try create an object while creating the pool
-        #         #print(vectors)
-        #         pool.starmap(createCVSSVector, iterable=vectors)
-        #         pool.close()
-        #         pool.join()
         with open(args.file[0], "r", encoding="utf-8") as file:
             for line in file:
                 createCVSSVector(CVSSVector(line.rstrip("\n")))
