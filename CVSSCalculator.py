@@ -2,8 +2,11 @@
 # -*- coding: utf-8 -*-
 
 # Author: n0t4u
-# Version: 0.2.2
+# Version: 0.2.3
 
+# Information obtained from:
+# https://www.first.org/cvss/calculator/cvsscalc31.js
+# https://nvd.nist.gov/vuln-metrics/cvss/v3-calculator (show equations)
 
 # Imports
 import argparse
@@ -17,7 +20,6 @@ import sys
 
 # Classes
 class CVSSVector:
-    #https://www.first.org/cvss/calculator/cvsscalc31.js
     scores = {"AV:N": 0.85,
               "AV:A": 0.62,
               "AV:L": 0.55,
@@ -119,7 +121,7 @@ class CVSSVector:
         # Temporal Score Metrics
         self.e = 1
         self.rl = 1
-        self. rc = 1
+        self.rc = 1
         # Environmental Score Metrics
         self.cr = 1
         self.ir = 1
@@ -145,22 +147,34 @@ class CVSSVector:
         else:
             return False
 
-    def printBasicScore(self):
-        print("Basic Score:\t", self.av, self.ac, self.pr, self.ui, self.s, self.c, self.i, self.a)
+    def printBaseScore(self):
+        print("Base Score:", self.baseScore)
         return
 
     def printTemporalScore(self):
-        print("Temporal Score:\t", self.e, self.rl, self.rc)
+        print("Temporal Score:", self.temporalScore)
         return
 
     def printEnvironmentalScore(self):
-        print("Environmental Score:\t", self.cr, self.ir, self.ar, self.mav, self.mac, self.mpr, self.mui, self.ms, self.mc, self.mi, self.ma)
+        print("Environmental Score:", self.environmentalScore)
+        return
+
+    def printBaseScoreMetrics(self):
+        logging.info(colored("Basic Score Metrics:\t%s %s %s %s %s %s %s %s" % (self.av, self.ac, self.pr, self.ui, self.s, self.c, self.i, self.a), "cyan"))
+        return
+
+    def printTemporalScoreMetrics(self):
+        logging.info(colored("Temporal Score Metrics:\t%s %s %s" % (self.e, self.rl, self.rc), "cyan"))
+        return
+
+    def printEnvironmentalScoreMetrics(self):
+        logging.info(colored("Environmental Score Metrics:\t%s %s %s %s %s %s %s %s %s %s %s" % (
+        self.cr, self.ir, self.ar, self.mav, self.mac, self.mpr, self.mui, self.ms, self.mc, self.mi, self.ma), "cyan"))
         return
 
     def getCVSS(self):
         print(self.vector)
         av, ac, pr, ui, s, c, i, a = self.vector.split('/')
-        logging.info("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s" %(av, ac, pr, ui, s, c, i, a))
         try:
             self.av = self.scores[av]
             self.ac = self.scores[ac]
@@ -176,10 +190,10 @@ class CVSSVector:
             self.c = self.scores[c]
             self.i = self.scores[i]
             self.a = self.scores[a]
-            self.printBasicScore()
+            self.printBaseScoreMetrics()
         except KeyError as e:
             print("[ERROR] The provided vector is not correct")
-            logging.info("Error found in %s" % e)
+            logging.info(colored("Error found in %s" % e, "cyan"))
             sys.exit(0)
         else:
             return
@@ -203,10 +217,10 @@ class CVSSVector:
             self.c = self.scores[c]
             self.i = self.scores[i]
             self.a = self.scores[a]
-            self.printBasicScore()
+            self.printBaseScoreMetrics()
         except KeyError as e:
             print("[ERROR] The provided vector is not correct")
-            logging.info("Error found in %s" % e)
+            logging.info(colored("Error found in %s" % e, "cyan"))
             sys.exit(0)
         else:
             extendScores = self.temporalScores | self.environmentalScores
@@ -216,7 +230,7 @@ class CVSSVector:
                     metric = element.split(":")[0]
                 except KeyError as e:
                     print("[ERROR] The provided vector is not correct")
-                    logging.info("Error found in %s (getCVSSExtended)" % e)
+                    logging.info(colored("Error found in %s (getCVSSExtended)" % e, "cyan"))
                     sys.exit(0)
                 else:
                     if metric == "E":
@@ -249,8 +263,8 @@ class CVSSVector:
                         self.ma = aux
                     else:
                         continue
-            self.printTemporalScore()
-            self.printEnvironmentalScore()
+            self.printTemporalScoreMetrics()
+            self.printEnvironmentalScoreMetrics()
             return
 
     def calculateValues(self):
@@ -266,33 +280,37 @@ class CVSSVector:
                     exploitabilityAux = self.roundup(
                         (self.exploitability * 10 / (self.exploitability + self.impact) * 10) / 10)
                     impactAux = self.roundup((self.impact * 10 / (self.exploitability + self.impact) * 10) / 10)
-                    logging.info("Impact: %f\t\tExploitability: %f" % (self.impact, self.exploitability))
-                    logging.info("Impact (right): %f\tExploitability (right): %f" % (impactAux, exploitabilityAux))
-                # exploitability = exploitabilityAux
-                # impact =  impactAux
+                    logging.info(
+                        colored("Impact: %f\t\tExploitability: %f" % (self.impact, self.exploitability), "cyan"))
+                    logging.info(
+                        colored("Impact (right): %f\tExploitability (right): %f" % (impactAux, exploitabilityAux),
+                                "cyan"))
                 else:
-                    logging.info("Impact: %f\tExploitability: %f" % (self.impact, self.exploitability))
+                    logging.info(colored("Impact: %f\tExploitability: %f" % (self.impact, self.exploitability), "cyan"))
             else:
                 self.impact = 6.42 * iss
-                logging.info("Impact: %f\tExploitability: %f" % (self.impact, self.exploitability))
+                logging.info(colored("Impact: %f\tExploitability: %f" % (self.impact, self.exploitability), "cyan"))
                 self.baseScore = self.roundup(min(self.impact + self.exploitability, 10))
 
             self.baseScore = math.ceil(
                 self.baseScore * 10) / 10  # Original formula= math.floor(old_value * 10**ndecimals) / 10**ndecimals
-            logging.info("Base Score: %f" % self.baseScore)
-            logging.info("ISS:%f\tImpact:%f\tExploitability:%f\tBase Score:%f" %(iss, self.impact, self.exploitability, self.baseScore))
+            self.printBaseScore()
+            logging.info(colored("ISS:%f\tImpact:%f\tExploitability:%f\tBase Score:%f" % (
+            iss, self.impact, self.exploitability, self.baseScore), "cyan"))
             return
 
     def calculateValuesExtended(self):
-        #Temporal
-        self.temporalScore = self.roundup(self.baseScore*self.e*self.rl*self.rc)
-        logging.info("Temporal Score:%f" % self.temporalScore)
-        #Environmental
-        caux = self.mc if re.search("MC:[^X]",
-                                    self.vector) else self.c  # Modified Confidentiality if MC and not MC:X value is found in vector
+        # Temporal
+        self.temporalScore = self.roundup(self.baseScore * self.e * self.rl * self.rc)
+        self.printTemporalScore()
+        # Environmental
+        # Modified Confidentiality if MC and not MC:X value is found in vector
+        caux = self.mc if re.search("MC:[^X]", self.vector) else self.c
         iaux = self.mi if re.search("MI:[^X]", self.vector) else self.i
         aaux = self.ma if re.search("MA:[^X]", self.vector) else self.a
-        logging.info("%f %f %f \t %f %f %f" %(self.cr, self.ir, self.ar, caux, iaux, aaux))
+        logging.info(
+            colored("Enviromental vs Base (CIA):\t%f %f %f \t %f %f %f" % (self.cr, self.ir, self.ar, caux, iaux, aaux),
+                    "cyan"))
         miss = min(1 - (1 - self.cr * caux) * (1 - self.ir * iaux) * (1 - self.ar * aaux), 0.915)
 
         if (re.search("MS:X", self.vector) and re.search("S:C", self.vector)) or re.search("MS:C", self.vector):
@@ -307,10 +325,14 @@ class CVSSVector:
         if self.impact == 0:
             pass
         elif (re.search("MS:X", self.vector) and re.search("S:C", self.vector)) or re.search("MS:C", self.vector):
-            self.environmentalScore = self.roundup(min(1.08 * (self.impact + self.exploitability), 10))
+            self.environmentalScore = self.roundup(
+                self.roundup(min(1.08 * (self.impact + self.exploitability), 10)) * self.e * self.rl * self.rc)
         else:
-            self.environmentalScore = self.roundup(min(self.impact + self.exploitability, 10))
-        logging.info("MISS:%f\tModified Impact:%f\t Modified Exploitability:%f\tEnvironmental Score:%f" %(miss, self.impact, self.exploitability, self.environmentalScore))
+            self.environmentalScore = self.roundup(
+                self.roundup(min(self.impact + self.exploitability, 10)) * self.e * self.rl * self.rc)
+        self.printEnvironmentalScore()
+        logging.info(colored("MISS:%f\tModified Impact:%f\t Modified Exploitability:%f\tEnvironmental Score:%f" % (
+        miss, self.impact, self.exploitability, self.environmentalScore), "cyan"))
         return
 
     def roundup(self, input):
