@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 
 # Author: n0t4u
-# Version: 0.2.1
+# Version: 0.2.2
+
 
 # Imports
 import argparse
@@ -16,6 +17,7 @@ import sys
 
 # Classes
 class CVSSVector:
+    #https://www.first.org/cvss/calculator/cvsscalc31.js
     scores = {"AV:N": 0.85,
               "AV:A": 0.62,
               "AV:L": 0.55,
@@ -40,6 +42,21 @@ class CVSSVector:
               "A:N": 0,
               "A:L": 0.22,
               "A:H": 0.56}
+    temporalScores = {"E:X": 1,
+                      "E:U": 0.91,
+                      "E:P": 0.94,
+                      "E:F": 0.97,
+                      "E:H": 1,
+                      "RL:X": 1,
+                      "RL:O": 0.95,
+                      "RL:T": 0.96,
+                      "RL:W": 0.97,
+                      "RL:U": 1,
+                      "RC:X": 1,
+                      "RC:U": 0.92,
+                      "RC:R": 0.96,
+                      "RC:C": 1,
+                      }
     environmentalScores = {"CR:X": 1,
                            "CR:L": 0.5,
                            "CR:M": 1,
@@ -90,7 +107,7 @@ class CVSSVector:
     def __init__(self, vector):
         self.vector = re.sub(r'CVSS:3\.[01]\/', '', vector, re.I)
         self.extended = self.isExtended()
-        # Basic Score
+        # Basic Score Metrics
         self.av = 0
         self.ac = 0
         self.pr = 0
@@ -99,7 +116,11 @@ class CVSSVector:
         self.c = 0
         self.i = 0
         self.a = 0
-        # Environmental Score
+        # Temporal Score Metrics
+        self.e = 1
+        self.rl = 1
+        self. rc = 1
+        # Environmental Score Metrics
         self.cr = 1
         self.ir = 1
         self.ar = 1
@@ -113,8 +134,8 @@ class CVSSVector:
         self.ma = 1
         #
         self.baseScore = 0
-        self.environmentalScore = 0
         self.temporalScore = 0
+        self.environmentalScore = 0
         self.impact = 0
         self.exploitability = 0
 
@@ -126,6 +147,10 @@ class CVSSVector:
 
     def printBasicScore(self):
         print("Basic Score:\t", self.av, self.ac, self.pr, self.ui, self.s, self.c, self.i, self.a)
+        return
+
+    def printTemporalScore(self):
+        print("Temporal Score:\t", self.e, self.rl, self.rc)
         return
 
     def printEnvironmentalScore(self):
@@ -184,16 +209,23 @@ class CVSSVector:
             logging.info("Error found in %s" % e)
             sys.exit(0)
         else:
+            extendScores = self.temporalScores | self.environmentalScores
             for element in extended:
                 try:
-                    aux = self.environmentalScores[element]
+                    aux = extendScores[element]
                     metric = element.split(":")[0]
                 except KeyError as e:
                     print("[ERROR] The provided vector is not correct")
-                    logging.info("Error found in %s" % e)
+                    logging.info("Error found in %s (getCVSSExtended)" % e)
                     sys.exit(0)
                 else:
-                    if metric == "CR":
+                    if metric == "E":
+                        self.e = aux
+                    elif metric == "RL":
+                        self.rl = aux
+                    elif metric == "RC":
+                        self.rc = aux
+                    elif metric == "CR":
                         self.cr = aux
                     elif metric == "IR":
                         self.ir = aux
@@ -217,6 +249,7 @@ class CVSSVector:
                         self.ma = aux
                     else:
                         continue
+            self.printTemporalScore()
             self.printEnvironmentalScore()
             return
 
@@ -251,6 +284,10 @@ class CVSSVector:
             return
 
     def calculateValuesExtended(self):
+        #Temporal
+        self.temporalScore = self.roundup(self.baseScore*self.e*self.rl*self.rc)
+        logging.info("Temporal Score:%f" % self.temporalScore)
+        #Environmental
         caux = self.mc if re.search("MC:[^X]",
                                     self.vector) else self.c  # Modified Confidentiality if MC and not MC:X value is found in vector
         iaux = self.mi if re.search("MI:[^X]", self.vector) else self.i
@@ -327,6 +364,7 @@ counter = 1
 def createCVSSVector(CVSSVector):
     if CVSSVector.isExtended():
         CVSSVector.getCVSSExtended()
+        CVSSVector.calculateValues()
         CVSSVector.calculateValuesExtended()
         CVSSVector.createGraph(CVSSVector.environmentalScore, show=args.show)
     else:
