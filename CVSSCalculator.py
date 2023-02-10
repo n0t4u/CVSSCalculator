@@ -342,7 +342,7 @@ class CVSSVector:
         else:
             return (math.floor(integer / 10000) + 1) / 10.0
 
-    def createGraph(self, score, show):
+    def createGraph(self, score, show, offset):
         global counter
         labels = ['']
         impact = [self.impact]
@@ -353,8 +353,8 @@ class CVSSVector:
         fig, ax = plt.subplots(figsize=(12, 2.6))
         fig.subplots_adjust(bottom=0.30)
 
-        p1 = ax.barh(labels, impact, width, label='Impacto', color='#4e81bd', align='center')
-        p2 = ax.barh(labels, exploitability, width, left=impact, label='Explotabilidad', color='#c1504c')
+        p1 = ax.barh(labels, impact, width, label=languages[lang][0+offset], color='#4e81bd', align='center')
+        p2 = ax.barh(labels, exploitability, width, left=impact, label=languages[lang][1+offset], color='#c1504c')
         # ay.bar(labels, exploitability, width,bottom=impact,label='Explotabilidad',color='#c1504c')
         # ax.set_xlabel("Impacto\tExplotabilidad")
 
@@ -369,7 +369,7 @@ class CVSSVector:
         ax.grid(color="#d7d7d7")
         plt.xlim([0, 10])
         plt.xticks(range(11))
-        plt.ylabel("Puntuación total", rotation="horizontal", labelpad=40)
+        plt.ylabel(languages[lang][0], rotation="horizontal", labelpad=40)
         filename = "cvss_%s.png" % str(counter)
         # plt.figure(num="Vector %s" %str(counter))
         counter += 1
@@ -380,6 +380,9 @@ class CVSSVector:
 
 # Variables
 counter = 1
+languages ={"spanish":["Puntuación Total", "Impacto", "Explotabilidad", "Impacto modificado", "Explotabilidad modificada"],
+            "english":["Total Scoring", "Impact", "Exploitability", "Modified impact", "Modified exploitability"]}
+lang="spanish"
 
 
 # Definitions
@@ -388,11 +391,11 @@ def createCVSSVector(CVSSVector):
         CVSSVector.getCVSSExtended()
         CVSSVector.calculateValues()
         CVSSVector.calculateValuesExtended()
-        CVSSVector.createGraph(CVSSVector.environmentalScore, show=args.show)
+        CVSSVector.createGraph(CVSSVector.environmentalScore, show=args.show, offset=3)
     else:
         CVSSVector.getCVSS()
         CVSSVector.calculateValues()
-        CVSSVector.createGraph(CVSSVector.baseScore, show=args.show)
+        CVSSVector.createGraph(CVSSVector.baseScore, show=args.show, offset=1)
     return
 
 
@@ -404,6 +407,9 @@ inputGroup.add_argument("-f", "--file", dest="file", help="File with multiple ve
 parser.add_argument("-s", "--show", dest="show", help="Shows the graphic (pauses the script execution).",
                     action="store_true")
 parser.add_argument("-V", "--verbose", dest="verbose", help="Verbose mode.", action="store_true")
+languageGroup = parser.add_mutually_exclusive_group(required=False)
+languageGroup.add_argument("-es", dest="es", help="Español", action="store_true")
+languageGroup.add_argument("-en", dest="en", help="English", action="store_true")
 
 args = parser.parse_args()
 
@@ -411,6 +417,8 @@ args = parser.parse_args()
 if __name__ == '__main__':
     if args.verbose:
         logging.basicConfig(level=logging.INFO)
+    if args.en:
+        lang="english"
     if args.vector:
         createCVSSVector(CVSSVector(args.vector[0]))
     elif args.file:
