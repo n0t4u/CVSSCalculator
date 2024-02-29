@@ -226,6 +226,16 @@ class CVSSVector:
             extendScores = self.temporalScores | self.environmentalScores
             for element in extended:
                 try:
+                    if element == "MPR:L":
+                        if re.search(r'MS:C', self.vector):
+                            element = "MPR:LMSC"
+                        elif self.c:
+                            element = "MPR:LSCMSX"
+                    elif element == "MPR:H":
+                        if re.search(r'MS:C', self.vector):
+                            element = "MPR:HMSC"
+                        elif self.c:
+                            element = "MPR:HSCMSX"
                     aux = extendScores[element]
                     metric = element.split(":")[0]
                 except KeyError as e:
@@ -299,6 +309,7 @@ class CVSSVector:
             iss, self.impact, self.exploitability, self.baseScore), "cyan"))
             return
 
+
     def calculateValuesExtended(self):
         # Temporal
         self.temporalScore = self.roundup(self.baseScore * self.e * self.rl * self.rc)
@@ -313,7 +324,7 @@ class CVSSVector:
                     "cyan"))
         miss = min(1 - (1 - self.cr * caux) * (1 - self.ir * iaux) * (1 - self.ar * aaux), 0.915)
 
-        if (re.search("MS:X", self.vector) and re.search("S:C", self.vector)) or re.search("MS:C", self.vector):
+        if re.search("S:C", self.vector) or re.search("MS:C", self.vector):
             self.impact = 7.52 * (miss - 0.029) - 3.25 * pow(miss * 0.9731 - 0.02, 13)
         else:
             self.impact = 6.42 * miss
@@ -324,7 +335,7 @@ class CVSSVector:
         self.exploitability = 8.22 * avaux * acaux * praux * uiaux
         if self.impact == 0:
             pass
-        elif (re.search("MS:X", self.vector) and re.search("S:C", self.vector)) or re.search("MS:C", self.vector):
+        elif re.search("S:C", self.vector) or re.search("MS:C", self.vector):
             self.environmentalScore = self.roundup(
                 self.roundup(min(1.08 * (self.impact + self.exploitability), 10)) * self.e * self.rl * self.rc)
         else:
