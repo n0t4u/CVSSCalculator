@@ -1,2 +1,2 @@
 # CVSSCalculator
-Automatic CVSS graph generator
+Automatic CVSS4.0 calculator written in Python3
